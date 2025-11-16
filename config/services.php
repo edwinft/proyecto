@@ -36,7 +36,8 @@ return [
     ],
 
     'payment_gateway' => [
-        'endpoint' => env('PAYMENT_GATEWAY_ENDPOINT', 'https://reqres.in/api/payments'),
+        'endpoint' => env('PAYMENT_GATEWAY_ENDPOINT'),
     ],
+
 
 ];

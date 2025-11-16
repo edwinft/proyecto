@@ -14,7 +14,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('order_id')->constrained()->cascadeOnDelete();
             $table->decimal('amount', 14, 2);
-            $table->enum('status', ['processing', 'success', 'failed'])->default('processing');
+            $table->enum('status', ['pending', 'processing', 'success', 'failed'])->default('processing');
             $table->json('gateway_response')->nullable();
             $table->timestamps();
         });

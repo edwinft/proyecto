@@ -1,102 +1,49 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Orders & Payments - Laravel (API + Blade Views)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Repositorio de ejemplo para la prueba técnica: API REST para gestionar Orders y Payments, con vistas Blade opcionales para demostración.
 
-## About Laravel
+## Resumen
+- Laravel (9/10 compatible) + PHP 8.1+
+- API para Orders y Payments (`/api/v1/...`)
+- Vistas Blade para crear/ver órdenes y procesar pagos (`/orders/...`)
+- Servicio `PaymentGateway` desacopla integración con gateway externo (configurable vía `.env`)
+- Tests feature cubriendo flujos críticos con `Http::fake()`
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Principales decisiones técnicas
+- **Service layer** (`PaymentGateway`) para desacoplar integración externa y facilitar tests.
+- **FormRequest** para validar la creación de órdenes (`StoreOrderRequest`).
+- **Payments**: cada intento crea un registro en `payments`. El campo `gateway_response` almacena la respuesta (JSON) del gateway.
+- **Estado de orden**: `pending`, `paid`, `failed`. `paid` se actualiza cuando un intento exitoso cubre el saldo pendiente.
+- **Testing**: `Http::fake()` en tests para simular gateway externo y evitar dependencias de red.
+- **DB**: migraciones preparadas; recomendación de usar sqlite (in-memory) para tests.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
-
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
-
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-## Laravel Sponsors
-
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
-
-### Premium Partners
-
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-
-# Prueba técnica - Orders & Payments (Laravel)
-
-## Requisitos
-- PHP 8.x
-- Composer
-- Laravel 8/9/10
-- Base de datos (sqlite/mysql). En tests se usa sqlite in-memory.
-
-## Instalación
+## Instalación (rápido)
 1. `composer install`
-2. Copiar `.env.example` a `.env` y configurar DB
+2. Copiar `.env.example` a `.env` y ajustar variables (DB, PAYMENT_GATEWAY_ENDPOINT)
 3. `php artisan key:generate`
-4. `php artisan migrate`
+4. Crear DB (o usar sqlite):
+   - Para sqlite: `touch database/database.sqlite` y en `.env` poner `DB_CONNECTION=sqlite` y `DB_DATABASE=/absolute/path/to/database.sqlite`
+5. `php artisan migrate`
+6. `php artisan serve`
 
-## Config
-En `.env` puedes definir:
-`PAYMENT_GATEWAY_ENDPOINT=https://reqres.in/api/mock-payment` (o el mock que prefieras)
+## Endpoints principales (API)
+- `POST /api/v1/orders` — crear orden  
+  Body: `{ "customer_name": "...", "total_amount": 100.00 }`
+- `GET /api/v1/orders` — listar órdenes (incluye pagos)
+- `GET /api/v1/orders/{order}` — ver orden
+- `GET /api/v1/orders/{order}/payments` — listar pagos de orden
+- `POST /api/v1/orders/{order}/payments` — intentar pago  
+  Body: `{ "amount": 100.00 }`
 
-## Endpoints
-- `POST /api/v1/orders` -> crear pedido
-  - body: `{ "customer_name":"...", "total_amount": 100.00 }`
-- `GET /api/v1/orders` -> listar pedidos con pagos
-- `GET /api/v1/orders/{order}` -> ver un pedido
-- `POST /api/v1/orders/{order}/payments` -> crear un intento de pago (siempre por total_amount)
-
-## Diseño y decisiones
-- `PaymentGateway` como servicio desacopla la integración externa y facilita tests.
-- Cada intento de pago crea un registro en `payments`. Se guarda la respuesta del gateway en `gateway_response`.
-- Usamos `Http::fake()` en tests para simular la API externa.
+## Uso desde la vista (Blade)
+- `GET /orders` — lista de órdenes
+- `GET /orders/create` — crear orden
+- `GET /orders/{order}` — ver detalle + botón **Intentar Pago**
+- `POST /orders/{order}/pay` — ejecutar intento de pago desde la vista
 
 ## Tests
 Ejecutar:
-`php artisan test` o `vendor/bin/phpunit`
-
-Tests implementados:
-- Procesamiento exitoso de pago -> order pasa a `paid`
-- Pago fallido -> order `failed`, se permiten nuevos intentos
-
-## Notas
-- No se implementó autenticación por requerimiento.
-- Se puede extender: webhooks, reintentos automáticos, auditoría, colas para procesamiento asíncrono.
-
+```bash
+php artisan test
+# o
+vendor/bin/phpunit

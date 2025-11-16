@@ -1,71 +1,73 @@
 <?php
 
-
 namespace App\Http\Controllers\Api;
-
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Payment;
-use App\Services\PaymentGateway;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
-
 
 class PaymentController extends Controller
 {
-    protected PaymentGateway $gateway;
-
-
-    public function __construct(PaymentGateway $gateway)
-    {
-        $this->gateway = $gateway;
-    }
-
-
-    /**
-     * Store a payment attempt for an order. Amount is the order's total_amount (business rule).
-     */
     public function store(Request $request, Order $order)
     {
-        // Business rule: payment amount is the order's total
-        $amount = (float)$order->total_amount;
-
-
-        // Create a payment record in 'processing'
-        $payment = Payment::create([
-            'order_id' => $order->id,
-            'amount' => $amount,
-            'status' => 'processing',
+        $request->validate([
+            'amount' => 'required|numeric|min:1'
         ]);
 
+        // Total pagado anteriormente
+        $alreadyPaid = $order->payments()->where('status', 'success')->sum('amount');
 
-        // Process payment with gateway
-        $result = $this->gateway->processPayment($order->id, $amount);
+        // Saldo pendiente
+        $remaining = $order->total_amount - $alreadyPaid;
 
+        // Logica de exito del pago
+        $success = $request->amount >= $remaining;
 
-        $payment->gateway_response = $result['response'] ?? null;
+        // Crear intento
+        $payment = $order->payments()->create([
+            'amount' => $request->amount,
+            'status' => 'processing'
+        ]);
 
+        $response = [
+            'success' => $success,
+            'transaction_id' => uniqid('txn_'),
+            'amount' => $request->amount,
+            'provider' => 'FakePay',
+            'timestamp' => now()->format("Y-m-d H:i:s"),
+            'message' => $success ? "Payment approved" : "Payment rejected"
+        ];
 
-        if ($result['success']) {
-            $payment->status = 'success';
-            $order->status = 'paid';
-        } else {
-            $payment->status = 'failed';
-            // Only set order to failed if not already paid
-            if ($order->status !== 'paid') {
-                $order->status = 'failed';
-            }
+        // Actualizar intento
+        $payment->update([
+            'status' => $success ? 'success' : 'failed',
+            'gateway_response' => $response
+        ]);
+
+        // Si es éxito, actualizar orden
+        if ($success) {
+            $order->update(['status' => 'paid']);
         }
 
-
-        $payment->save();
-        $order->save();
-
-
         return response()->json([
+            'message' => 'Payment processed',
             'payment' => $payment,
-            'order' => $order->fresh(),
-        ], Response::HTTP_CREATED);
+            'order_paid' => $order->status === 'paid'
+        ]);
+    }
+
+    private function simulateGateway($amount)
+    {
+        $isSuccess = rand(0, 10) > 4;
+
+        return [
+            'success' => $isSuccess,
+            'transaction_id' => uniqid('txn_'),
+            'amount' => $amount,
+            'provider' => 'FakePay',
+            'timestamp' => now()->toDateTimeString(),
+            'message' => $isSuccess ? 'Payment approved' : 'Payment rejected',
+        ];
     }
 }
