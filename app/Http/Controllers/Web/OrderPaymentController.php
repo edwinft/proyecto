@@ -24,7 +24,7 @@ class OrderPaymentController extends Controller
         $paid = $order->payments()->where('status', 'success')->sum('amount');
         $remaining = $order->total_amount - $paid;
 
-        $success = $request->amount >= $remaining;
+        $success = $request->amount == $remaining;
 
         // crear intento de pago
         $payment = $order->payments()->create([

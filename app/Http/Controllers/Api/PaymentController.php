@@ -22,7 +22,7 @@ class PaymentController extends Controller
         $remaining = $order->total_amount - $alreadyPaid;
 
         // Logica de exito del pago
-        $success = $request->amount >= $remaining;
+        $success = $request->amount == $remaining;
 
         // Crear intento
         $payment = $order->payments()->create([
